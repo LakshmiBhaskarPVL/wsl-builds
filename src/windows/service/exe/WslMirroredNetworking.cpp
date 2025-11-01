@@ -96,14 +96,24 @@ void wsl::core::networking::WslMirroredNetworkManager::ProcessConnectivityChange
 
             NLM_CONNECTIVITY connectivity{};
             hr = networkConnection->GetConnectivity(&connectivity);
-            if (FAILED(hr) || connectivity == NLM_CONNECTIVITY_DISCONNECTED)
+            if (FAILED(hr))
             {
                 WSL_LOG(
                     "WslMirroredNetworkManager::ProcessConnectivityChange - ignoring interface after processing "
                     "INetworkConnection::GetConnectivity",
                     TraceLoggingValue(wsl::shared::string::GuidToString<wchar_t>(interfaceGuid).c_str(), "interfaceGuid"),
-                    TraceLoggingValue(connectivity == NLM_CONNECTIVITY_DISCONNECTED, "is_NLM_CONNECTIVITY_DISCONNECTED"),
                     TraceLoggingValue(hr, "hr"));
+                continue;
+            }
+
+            // Use the new helper to check if connectivity is usable
+            // This supports not only full internet connectivity but also limited connectivity scenarios like cellular hotspots
+            if (!wsl::core::networking::IsConnectivityUsable(connectivity))
+            {
+                WSL_LOG(
+                    "WslMirroredNetworkManager::ProcessConnectivityChange - ignoring interface with no connectivity",
+                    TraceLoggingValue(wsl::shared::string::GuidToString<wchar_t>(interfaceGuid).c_str(), "interfaceGuid"),
+                    TraceLoggingValue(wsl::core::networking::ToString(connectivity).c_str(), "connectivity"));
                 continue;
             }
 
@@ -1558,8 +1568,9 @@ try
 
             // Set the due time just past the debounce timer duration, relative to the last update time.
             m_IsDebounceUpdateAllEndpointsDefaultTimerSet = true;
-            FILETIME dueTime = wil::filetime::from_int64(static_cast<ULONGLONG>(
-                -1 * (wil::filetime_duration::one_millisecond * (20 + m_debounceUpdateAllEndpointsTimerMs - timeFromLastUpdate))));
+            FILETIME dueTime = wil::filetime::from_int64(
+                static_cast<ULONGLONG>(
+                    -1 * (wil::filetime_duration::one_millisecond * (20 + m_debounceUpdateAllEndpointsTimerMs - timeFromLastUpdate))));
             SetThreadpoolTimer(m_debounceUpdateAllEndpointsDefaultTimer.get(), &dueTime, 0, 0);
             return;
         }

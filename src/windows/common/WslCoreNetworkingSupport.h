@@ -263,6 +263,27 @@ inline std::string ToString(const NLM_CONNECTIVITY& nlmConnectivity)
     return returnString;
 }
 
+/// <summary>
+/// Determines if an NLM_CONNECTIVITY status represents a usable network connection.
+/// This includes standard connected states, limited connectivity (e.g., cellular hotspots),
+/// and cases where we have any form of IP connectivity.
+/// </summary>
+/// <param name="connectivity">The NLM_CONNECTIVITY status to check</param>
+/// <returns>true if the interface should be considered connected; false if completely disconnected</returns>
+inline bool IsConnectivityUsable(NLM_CONNECTIVITY connectivity) noexcept
+{
+    // Completely disconnected = not usable
+    if (connectivity == NLM_CONNECTIVITY_DISCONNECTED)
+    {
+        return false;
+    }
+
+    // Any form of connectivity is usable (IPv4/IPv6, subnet/local/internet, limited traffic)
+    // This includes cellular hotspots which may report NLM_CONNECTIVITY_IPV4_NOTRAFFIC
+    // or other non-standard connectivity states
+    return true;
+}
+
 enum class UpdateEndpointFlag
 {
     None,
